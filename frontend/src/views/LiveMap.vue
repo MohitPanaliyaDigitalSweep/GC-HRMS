@@ -20,6 +20,10 @@
 								<option v-for="e in employees" :key="e.name" :value="e.name">{{ e.employee_name || e.name }}</option>
 							</select>
 						</div>
+						<div>
+							<label class="text-xs font-medium text-gray-600 mb-1 block">{{ __("Date") }}</label>
+							<input v-model="selectedDate" @change="refresh" type="date" class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+						</div>
 						<div class="flex gap-2">
 							<button class="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white" @click="refresh">
 								<i class="fa fa-refresh mr-1"></i> {{ __("Refresh") }}
@@ -78,6 +82,7 @@ import { call } from "frappe-ui"
 
 const company = ref("")
 const employee = ref("")
+const selectedDate = ref(new Date().toISOString().slice(0, 10))
 const companies = ref([])
 const employees = ref([])
 const recentVisits = ref([])
@@ -134,7 +139,7 @@ async function initMap() {
 		await loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
 		await loadCss("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
 	}
-	map = window.L.map(mapContainer).setView([20.5937, 78.9629], 5)
+	map = window.L.map(mapContainer).setView([21.1702, 72.8311], 12)
 	window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 		attribution: "&copy; OpenStreetMap contributors",
 		maxZoom: 19,
@@ -171,10 +176,10 @@ async function refresh() {
 		const [empLocs, custLocs, visits] = await Promise.all([
 			call("fast_entry_app.api.field_visit.get_live_locations", { company: comp }).catch(() => []),
 			call("fast_entry_app.api.field_visit.get_customer_locations", { company: comp }).catch(() => []),
-			call("fast_entry_app.api.field_visit.get_field_visits", { company: comp, employee: employee.value || "", limit: 500 }).catch(() => []),
+			call("fast_entry_app.api.field_visit.get_field_visits", { company: comp, employee: employee.value || "", from_date: selectedDate.value || "", to_date: selectedDate.value || "", limit: 2000 }).catch(() => []),
 		])
 
-		// Employee markers (green)
+		// Employee markers (green) - live locations
 		const empMarkers = (empLocs || []).filter((l) => showEmployees.value).map((l) => ({
 			type: "employee",
 			id: "emp_" + l.employee,
@@ -200,7 +205,7 @@ async function refresh() {
 			color: "#2563eb",
 		}))
 
-		// Visit markers (red) - show latest visit per location
+		// Visit markers (red) - ALL visits
 		const visitMarkers = (visits || []).filter((v) => v.latitude && v.longitude && showVisits.value).map((v) => ({
 			type: "visit",
 			id: "visit_" + v.name,
